@@ -1,0 +1,49 @@
+{
+    "Sound": {
+        "Spectrogram_Dim": 513,
+        "Mel_Dim": 80,
+        "Frame_Length": 1024,
+        "Frame_Shift": 256,
+        "Sample_Rate": 16000,
+        "Max_Abs_Mel": 4
+    },
+
+    "WaveRNN": {
+        "Mode": "MoL",
+        "Upsample": {
+            "Res_Blocks": 10,
+            "Scales": [4, 4, 4, 4],
+            "Hidden_Size": 128,
+            "Output_Size": 128,
+            "Pad": 2
+        },        
+        "RNN_Size": 512,
+        "Dense_Sizes": 512,
+        "Class": 256
+    },
+
+    "Train": {
+        "Pattern_Path": "C:/Pattern/WR.Pattern.LJFV",
+        "Metadata_File": "METADATA.PICKLE",
+        "Batch_Size": 32,
+        "Wav_Length": 1280,
+        "Max_Pattern_Queue": 100,
+        "Initial_Learning_Rate": 1e-4,
+        "Min_Learning_Rate": 1e-5,
+        "L2_Regularization": 0,
+        "ADAM": {
+            "Beta1": 0.9,
+            "Beta2": 0.999,
+            "Epsilon": 1e-4
+        },
+        "Inference_Timing": 1000,
+        "Checkpoint_Save_Timing": 1000,
+        "Initial_Inference": true
+    },
+
+
+    "Use_Mixed_Precision": false,
+    "Inference_Path": "D:/WaveRNN.Results/Inference",
+    "Checkpoint_Path": "D:/WaveRNN.Results/Checkpoint",
+    "Device": "0"
+}
