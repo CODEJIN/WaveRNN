@@ -47,6 +47,7 @@ def Discretized_Mix_Logistic_Loss(
     labels: [Batch, Time]
     logits: [Batch, Time, Dim]
     '''
+    classes = tf.cast(classes, dtype= logits.dtype)
 
     if log_scale_min is None:
         log_scale_min = float(np.log(1e-14))
@@ -76,7 +77,7 @@ def Discretized_Mix_Logistic_Loss(
     mid_in = inv_stdv * cetnered_labels
     log_pdf_mid = mid_in - log_scales - 2.0 * tf.math.softplus(mid_in)
 
-    inner_inner_cond = tf.cast(tf.greater(cdf_delta, 1e-5), dtype= logits.dtype)
+    inner_inner_cond = tf.cast(tf.greater(cdf_delta, 1e-5), dtype= logits.dtype)    
     inner_inner_out = \
         inner_inner_cond * tf.math.log(tf.maximum(cdf_delta, 1e-12)) + \
         (1.0 - inner_inner_cond) * (log_pdf_mid - tf.math.log((classes - 1) /2))

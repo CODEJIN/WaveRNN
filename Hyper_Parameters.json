@@ -25,20 +25,19 @@
     "Train": {
         "Pattern_Path": "C:/Pattern/WR.Pattern.LJFV",
         "Metadata_File": "METADATA.PICKLE",
-        "Batch_Size": 32,
-        "Wav_Length": 1280,
+        "Batch_Size": 160,
+        "Wav_Length": 768,
         "Max_Pattern_Queue": 100,
-        "Initial_Learning_Rate": 1e-4,
+        "Initial_Learning_Rate": 1e-3,
         "Min_Learning_Rate": 1e-5,
-        "L2_Regularization": 0,
         "ADAM": {
             "Beta1": 0.9,
             "Beta2": 0.999,
-            "Epsilon": 1e-4
+            "Epsilon": 1e-7
         },
         "Inference_Timing": 1000,
         "Checkpoint_Save_Timing": 1000,
-        "Initial_Inference": true
+        "Initial_Inference": false
     },
 
 

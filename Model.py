@@ -48,24 +48,28 @@ class WaveRNN:
 
         layer_Dict['WaveRNN'] = Modules.WaveRNN()        
         layer_Dict['Loss'] = Modules.Loss()
-        
-        tensor_Dict['Inference', 'Samples'] = layer_Dict['WaveRNN'](input_Dict['Mel'])
-        tensor_Dict['Train', 'Loss'] = layer_Dict['WaveRNN'].train(inputs= [input_Dict['Audio'], input_Dict['Mel']], training= True)        
+                
+        tensor_Dict['Logits'], tensor_Dict['Samples'] = layer_Dict['WaveRNN'](
+            inputs= [input_Dict['Audio'][:, :-1], input_Dict['Mel']]
+            ) #Using audio is [:, :-1].
+        tensor_Dict['Loss'] = layer_Dict['Loss'](
+            inputs=[input_Dict['Audio'][:, 1:], tensor_Dict['Logits']]
+            )    #Using audio is [:, 1:time + 1]
 
         self.model_Dict = {}
         self.model_Dict['Train'] = tf.keras.Model(
             inputs= [input_Dict['Audio'], input_Dict['Mel']],
-            outputs= tensor_Dict['Train', 'Loss']
+            outputs= tensor_Dict['Loss']
             )
 
         self.model_Dict['Inference'] = tf.keras.Model(
-            inputs= input_Dict['Mel'],
-            outputs= tensor_Dict['Inference', 'Samples']
+            inputs= [input_Dict['Audio'], input_Dict['Mel']],
+            outputs= tensor_Dict['Samples']
             )
 
         learning_Rate = Modules.ExponentialDecay(
             initial_learning_rate= hp_Dict['Train']['Initial_Learning_Rate'],
-            decay_steps= 10000,
+            decay_steps= 100000,
             decay_rate= 0.5,
             min_learning_rate= hp_Dict['Train']['Min_Learning_Rate'],
             staircase= False
@@ -86,10 +90,10 @@ class WaveRNN:
     # @tf.function(
     #     input_signature=[            
     #         tf.TensorSpec(shape=[None, None], dtype= tf.as_dtype(policy.compute_dtype)),
-    #         tf.TensorSpec(shape=[None, None], dtype= tf.as_dtype(policy.compute_dtype)),
+    #         tf.TensorSpec(shape=[None, None, hp_Dict['Sound']['Mel_Dim']], dtype= tf.as_dtype(policy.compute_dtype)),
     #         ],
-    #     autograph= False,
-    #     experimental_relax_shapes= False
+    #     autograph= True,
+    #     experimental_relax_shapes= True
     #     )
     def Train_Step(self, audios, mels):
         with tf.GradientTape() as tape:
@@ -102,16 +106,17 @@ class WaveRNN:
 
         return loss
 
-    @tf.function(
-        input_signature=[            
-            tf.TensorSpec(shape=[None, None, hp_Dict['Sound']['Mel_Dim']], dtype= tf.as_dtype(policy.compute_dtype)),
-            ],
-        autograph= False,
-        experimental_relax_shapes= False
-        )
-    def Inference_Step(self, mels):        
+    # @tf.function(
+    #     input_signature=[            
+    #         tf.TensorSpec(shape=[None, None], dtype= tf.as_dtype(policy.compute_dtype)),
+    #         tf.TensorSpec(shape=[None, None, hp_Dict['Sound']['Mel_Dim']], dtype= tf.as_dtype(policy.compute_dtype)),
+    #         ],
+    #     autograph= False,
+    #     experimental_relax_shapes= False
+    #     )
+    def Inference_Step(self, audios, mels):        
         sig = self.model_Dict['Inference'](
-            inputs= mels,
+            inputs= [audios, mels],
             training= False
             )
 
@@ -151,7 +156,7 @@ class WaveRNN:
 
             self.Inference(wav_List= wav_List)
 
-        Save_Checkpoint()
+        # Save_Checkpoint()
         if hp_Dict['Train']['Initial_Inference']:
             Run_Inference()
         while True:

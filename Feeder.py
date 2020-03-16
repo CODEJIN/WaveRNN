@@ -105,9 +105,9 @@ class Feeder:
             mel_List.append(mel)
 
         max_Mel_Length = max([mel.shape[0] for mel in mel_List])
-        mel_Pattern = np.random.normal(
-            scale= 0.0001,
-            size= (len(mel_List), max_Mel_Length, hp_Dict['Sound']['Mel_Dim'])
+        mel_Pattern = np.zeros(
+            shape= (len(mel_List), max_Mel_Length, hp_Dict['Sound']['Mel_Dim']),
+            dtype= np.float32
             )
         for index, mel in enumerate(mel_List):
             mel_Pattern[index, :mel.shape[0]] = mel
@@ -115,6 +115,7 @@ class Feeder:
         wav_List = [None] * len(mel_List)
         wav_List[-len(sig_List):] = sig_List
         pattern_Dict = {
+            'audios': np.zeros(shape=(len(mel_List), 1), dtype= np.float32),
             'mels': mel_Pattern,
             }
 
