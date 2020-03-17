@@ -31,17 +31,6 @@ def Pattern_Generate(path, top_db= 60):
         max_abs_value= hp_Dict['Sound']['Max_Abs_Mel']
         ))
 
-    print('################################Temp################################')
-    wav_Length = 8192
-    mel_Window = wav_Length // hp_Dict['Sound']['Frame_Shift'] + 2 * hp_Dict['WaveRNN']['Upsample']['Pad']
-    max_Offset = mel.shape[0] - 2 - (mel_Window + 2 * hp_Dict['WaveRNN']['Upsample']['Pad'])
-    mel_Offset = np.random.randint(0, max_Offset)
-    sig_Offset = (mel_Offset + hp_Dict['WaveRNN']['Upsample']['Pad']) * hp_Dict['Sound']['Frame_Shift']
-    print('################################Temp################################')
-        
-    mel = mel[mel_Offset:mel_Offset + mel_Window]
-    sig = sig[sig_Offset:sig_Offset + wav_Length]
-
     return sig, mel
 
 def Pattern_File_Generate(path, dataset, file_Prefix='', display_Prefix = '', top_db= 60):

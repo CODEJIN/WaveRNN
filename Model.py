@@ -188,22 +188,45 @@ class WaveRNN:
             if self.optimizer.iterations.numpy() % hp_Dict['Train']['Inference_Timing'] == 0:
                 Run_Inference()
 
-    def Inference(self, mel_List= None, wav_List= None, label= None):
+    def Inference(
+        self,
+        mel_List= None,
+        wav_List= None,
+        label= None,
+        split_Mel_Window= 7,
+        overlap_Window= 1,
+        batch_Size= 16
+        ):
         print('Inference running...')
 
-        original_Sig_List, pattern_Dict = self.feeder.Get_Inference_Pattern(mel_List= mel_List, wav_List= wav_List)
-        if pattern_Dict is None:
-            print('Inference fail.')
+        original_Sig_List, pattern_Dict_List, split_Mel_Index_List = self.feeder.Get_Inference_Pattern(
+            mel_List= mel_List,
+            wav_List= wav_List,
+            split_Mel_Window= split_Mel_Window,
+            overlap_Window= overlap_Window,
+            batch_Size= batch_Size
+            )
+        if pattern_Dict_List is None:
+            print('No data. Inference fail.')
             return
             
-        sigs = self.Inference_Step(
-            **pattern_Dict
-            )
-
+        split_Sigs = np.vstack([self.Inference_Step(**pattern_Dict).numpy() for pattern_Dict in pattern_Dict_List])
+        split_Sigs = split_Sigs[:, overlap_Window*hp_Dict['Sound']['Frame_Shift']:] #Overlap cutting
+        sig_List = []
+        current_Index = 0
+        split_Sig_List = []
+        for index, split_Mel_Index in enumerate(split_Mel_Index_List):
+            if split_Mel_Index > current_Index:
+                sig_List.append(np.hstack(split_Sig_List))
+                current_Index += 1
+                split_Sig_List = []            
+            split_Sig_List.append(split_Sigs[index])
+        sig_List.append(np.hstack(split_Sig_List))
+            
         export_Inference_Thread = Thread(
             target= self.Export_Inference,
             args= [
-                sigs.numpy(),
+                sig_List,
                 original_Sig_List,
                 label or datetime.now().strftime("%Y%m%d.%H%M%S")
                 ]

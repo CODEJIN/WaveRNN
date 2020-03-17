@@ -157,7 +157,7 @@ class WaveRNN(tf.keras.Model):
         if hp_Dict['WaveRNN']['Mode'].upper() == 'MoL'.upper():
             projection_Size = 30
         elif hp_Dict['WaveRNN']['Mode'].upper() == 'Raw'.upper():
-            projection_Size = 2 ** 16
+            projection_Size = 512   #Coarse + Fine
         else:
             raise ValueError('Unsupported mode')
 
@@ -173,10 +173,14 @@ class WaveRNN(tf.keras.Model):
         '''
         def Calc_Sample(logit):
             if hp_Dict['WaveRNN']['Mode'].upper() == 'MoL'.upper():
-                sample = Sample_from_Discretized_Mix_Logistic(logit)                
+                sample = Sample_from_Discretized_Mix_Logistic(logit)
+                sample = tf.expand_dims(sample, axis= -1)
             elif hp_Dict['WaveRNN']['Mode'].upper() == 'Raw'.upper():
-                posterior = tf.math.softmax(logit, axis= -1)
-                sample = 2 * tf.random.categorical(posterior, num_samples= 1) / (hp_Dict['WaveRNN']['Class'] - 1) - 1
+                coarse_Logit, fine_Logit = tf.split(logit, num_or_size_splits= 2, axis= -1)                
+                coarse = tf.random.categorical(tf.math.softmax(coarse_Logit, axis= -1), num_samples= 1)
+                fine = tf.random.categorical(tf.math.softmax(fine_Logit, axis= -1), num_samples= 1)
+                sample = 2 * (coarse * 256 + fine) / 65536 - 1.0
+                sample = tf.cast(sample, dtype= logit.dtype)
             else:
                 raise ValueError('Unsupported mode')
             return sample
@@ -237,10 +241,10 @@ class WaveRNN(tf.keras.Model):
 
             sample = tf.cond(
                 pred= training,
-                true_fn= lambda: tf.zeros(shape=[batch_Size,], dtype= mels.dtype),
+                true_fn= lambda: tf.zeros(shape=[batch_Size, 1], dtype= mels.dtype),
                 false_fn= lambda: Calc_Sample(logit)
                 )
-            samples = tf.concat([samples, tf.expand_dims(sample, axis= -1)], axis= -1)
+            samples = tf.concat([samples, sample], axis= -1)
         
             return step + 1, new_Hidden_0, new_Hidden_1, logits, samples
         
@@ -271,10 +275,19 @@ class Loss(tf.keras.layers.Layer):
         if hp_Dict['WaveRNN']['Mode'].upper() == 'MoL'.upper():
             return Discretized_Mix_Logistic_Loss(labels= labels, logits= logits)
         elif hp_Dict['WaveRNN']['Mode'].upper() == 'Raw'.upper():
-            return tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
-                lables= labels,
-                logits= logits
+            labels = tf.cast((labels + 1) / 2 * (65536 - 1), dtype=tf.int32)
+            coarse_Labels, fine_Labels = labels // 256, labels % 256            
+            coarse_Logits, fine_Logits = tf.split(logits, num_or_size_splits= 2, axis= -1)
+
+            coarse_Loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
+                labels= coarse_Labels,
+                logits= coarse_Logits
                 ))
+            fine_Loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
+                labels= fine_Labels,
+                logits= fine_Logits
+                ))
+            return coarse_Loss + fine_Loss
         else:
             raise ValueError('Unsupported mode')
 

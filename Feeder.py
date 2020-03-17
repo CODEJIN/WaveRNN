@@ -93,10 +93,48 @@ class Feeder:
             time.sleep(0.01)
         return self.pattern_Queue.popleft()
 
-    def Get_Inference_Pattern(self, mel_List= None, wav_List= None):
+    # def Get_Inference_Pattern(self, mel_List= None, wav_List= None):
+    #     if wav_List is None and mel_List is None:
+    #         print('One of paths must be not None.')
+    #         return None
+    #     sig_List = []
+    #     mel_List = mel_List or []
+    #     for path in wav_List:
+    #         sig, mel = Load_Mel_from_Signal(path)
+    #         sig_List.append(sig)
+    #         mel_List.append(mel)
+
+    #     max_Mel_Length = max([mel.shape[0] for mel in mel_List])
+    #     mel_Pattern = np.zeros(
+    #         shape= (len(mel_List), max_Mel_Length, hp_Dict['Sound']['Mel_Dim']),
+    #         dtype= np.float32
+    #         )
+    #     for index, mel in enumerate(mel_List):
+    #         mel_Pattern[index, :mel.shape[0]] = mel
+
+    #     wav_List = [None] * len(mel_List)
+    #     wav_List[-len(sig_List):] = sig_List
+    #     pattern_Dict = {
+    #         'audios': np.zeros(shape=(len(mel_List), 1), dtype= np.float32),
+    #         'mels': mel_Pattern,
+    #         }
+
+    #     return wav_List, pattern_Dict
+
+    def Get_Inference_Pattern(
+        self,
+        mel_List= None,
+        wav_List= None,
+        split_Mel_Window= 7,
+        overlap_Window= 1,
+        batch_Size= 16
+        ):
+        split_Mel_Window += 2 * hp_Dict['WaveRNN']['Upsample']['Pad']
+        overlap_Window += 2 * hp_Dict['WaveRNN']['Upsample']['Pad']
+
         if wav_List is None and mel_List is None:
             print('One of paths must be not None.')
-            return None
+            return None, None, None
         sig_List = []
         mel_List = mel_List or []
         for path in wav_List:
@@ -104,22 +142,37 @@ class Feeder:
             sig_List.append(sig)
             mel_List.append(mel)
 
-        max_Mel_Length = max([mel.shape[0] for mel in mel_List])
-        mel_Pattern = np.zeros(
-            shape= (len(mel_List), max_Mel_Length, hp_Dict['Sound']['Mel_Dim']),
-            dtype= np.float32
-            )
+        split_Mel_Index_List = []
+        split_Mel_List = []
         for index, mel in enumerate(mel_List):
-            mel_Pattern[index, :mel.shape[0]] = mel
+            mel = np.vstack([np.zeros(shape=(overlap_Window, mel.shape[1]), dtype= mel.dtype), mel])    # initial padding
+            current_Index = 0
+            while True:
+                split_Mel_Index_List.append(index)
+                split_Mel_List.append(mel[current_Index:current_Index + split_Mel_Window])
+                
+                if current_Index + split_Mel_Window >= mel.shape[0]:
+                    break
+                current_Index += split_Mel_Window - overlap_Window                
+            split_Mel_List[-1] = np.vstack([
+                split_Mel_List[-1],
+                np.zeros(shape=(split_Mel_Window - split_Mel_List[-1].shape[0], mel.shape[1]), dtype= mel.dtype)
+                ])    # last padding
+
+        mel_Pattern = np.stack(split_Mel_List, axis= 0)
 
         wav_List = [None] * len(mel_List)
         wav_List[-len(sig_List):] = sig_List
-        pattern_Dict = {
-            'audios': np.zeros(shape=(len(mel_List), 1), dtype= np.float32),
-            'mels': mel_Pattern,
-            }
 
-        return wav_List, pattern_Dict
+        pattern_Dict_List = []
+        for split_Mel_Pattern in [mel_Pattern[index:index+batch_Size] for index in range(0, mel_Pattern.shape[0], batch_Size)]:
+            new_Pattern_Dict = {
+                'audios': np.zeros(shape=(split_Mel_Pattern.shape[0], 1), dtype= np.float32),
+                'mels': split_Mel_Pattern,
+                }
+            pattern_Dict_List.append(new_Pattern_Dict)
+
+        return wav_List, pattern_Dict_List, split_Mel_Index_List
 
 
 if __name__ == "__main__":
