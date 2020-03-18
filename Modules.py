@@ -138,11 +138,20 @@ class WaveRNN(tf.keras.Model):
         self.layer_Dict['I'] = tf.keras.layers.Dense(
             units= hp_Dict['WaveRNN']['RNN_Size']
             )
+
         self.layer_Dict['RNN_Cell_0'] = tf.keras.layers.GRUCell(
             units= hp_Dict['WaveRNN']['RNN_Size']
             )
+        self.layer_Dict['RNN_0'] = tf.keras.layers.RNN(
+            cell= self.layer_Dict['RNN_Cell_0'],
+            return_sequences= True
+            )
         self.layer_Dict['RNN_Cell_1'] = tf.keras.layers.GRUCell(
             units= hp_Dict['WaveRNN']['RNN_Size']
+            )
+        self.layer_Dict['RNN_1'] = tf.keras.layers.RNN(
+            cell= self.layer_Dict['RNN_Cell_1'],
+            return_sequences= True
             )
 
         self.layer_Dict['Dense_0'] = tf.keras.layers.Dense(
@@ -171,47 +180,42 @@ class WaveRNN(tf.keras.Model):
         audios: [Batch, Time + 1] when train | [Batch, 1] when inference
         mels: [Batch, Time, Mel_dim]
         '''
-        def Calc_Sample(logit):
-            if hp_Dict['WaveRNN']['Mode'].upper() == 'MoL'.upper():
-                sample = Sample_from_Discretized_Mix_Logistic(logit)
-                sample = tf.expand_dims(sample, axis= -1)
-            elif hp_Dict['WaveRNN']['Mode'].upper() == 'Raw'.upper():
-                coarse_Logit, fine_Logit = tf.split(logit, num_or_size_splits= 2, axis= -1)                
-                coarse = tf.random.categorical(tf.math.softmax(coarse_Logit, axis= -1), num_samples= 1)
-                fine = tf.random.categorical(tf.math.softmax(fine_Logit, axis= -1), num_samples= 1)
-                sample = 2 * (coarse * 256 + fine) / 65536 - 1.0
-                sample = tf.cast(sample, dtype= logit.dtype)
-            else:
-                raise ValueError('Unsupported mode')
-            return sample
-
         audios, mels = inputs
         training = tf.convert_to_tensor(training)
-        # mels = tf.cond(
-        #     pred= training,
-        #     true_fn= lambda: mels,
-        #     false_fn= lambda: tf.pad(
-        #         mels,
-        #         paddings= [[0, 0], [hp_Dict['WaveRNN']['Upsample']['Pad'], hp_Dict['WaveRNN']['Upsample']['Pad']], [0, 0]]
-        #         )
-        #     )
-
         mels, auxs = self.layer_Dict['Upsample'](mels)
 
+        logits, samples = tf.cond(
+            pred= training,
+            true_fn= lambda: self.train(audios, mels, auxs),
+            false_fn= lambda: self.inference(mels, auxs)
+            )
+
+        return logits, samples
+
+    def train(self, audios, mels, auxs):
+        audios = tf.expand_dims(audios, axis= -1)
+        auxs = tf.split(auxs, num_or_size_splits= 4, axis= -1)
+
+        new_Tensor = tf.concat([audios, mels, auxs[0]], axis= -1)
+        new_Tensor = self.layer_Dict['I'](new_Tensor)
+        new_Tensor += self.layer_Dict['RNN_0'](new_Tensor)
+        new_Tensor += self.layer_Dict['RNN_1'](tf.concat([new_Tensor, auxs[1]], axis= -1))
+        new_Tensor = self.layer_Dict['Dense_0'](tf.concat([new_Tensor, auxs[2]], axis= -1))
+        new_Tensor = self.layer_Dict['Dense_1'](tf.concat([new_Tensor, auxs[3]], axis= -1))
+        logits = self.layer_Dict['Projection'](new_Tensor)
+
+        return logits, tf.zeros(shape=[tf.shape(logits)[0], tf.shape(logits)[1]], dtype= mels.dtype)
+
+    def inference(self, mels, auxs):
         batch_Size, mel_Lengths = tf.shape(mels)[0], tf.shape(mels)[1]
 
         initial_Hidden_0 = self.layer_Dict['RNN_Cell_0'].get_initial_state(inputs= mels)
         initial_Hidden_1 = self.layer_Dict['RNN_Cell_1'].get_initial_state(inputs= mels)
-        logits = tf.zeros(shape=[batch_Size, 1, self.layer_Dict['Projection'].units], dtype= mels.dtype)    # [Batch, projection_size] for train
         samples = tf.zeros(shape=[batch_Size, 1], dtype= mels.dtype)    # [Batch, 1] for inference
-        def body(step, hidden_0, hidden_1, logits, samples):
+        def body(step, hidden_0, hidden_1, samples):
             current_Mel = mels[:, step, :]
             current_Aux = tf.split(auxs[:, step, :], num_or_size_splits= 4, axis= -1)
-            current_Sample = tf.expand_dims(tf.cond(
-                pred= training,
-                true_fn= lambda: audios[:, step],
-                false_fn= lambda: samples[:, -1]
-                ), axis= -1)
+            current_Sample = tf.expand_dims(samples[:, -1], axis= -1)
 
             new_Tensor = tf.concat([current_Sample, current_Mel, current_Aux[0]], axis= -1)
             new_Tensor = self.layer_Dict['I'](new_Tensor)            
@@ -237,37 +241,45 @@ class WaveRNN(tf.keras.Model):
                 )
             logit = self.layer_Dict['Projection'](new_Tensor)
 
-            logits = tf.concat([logits, tf.expand_dims(logit, axis= 1)], axis= 1)
-
-            sample = tf.cond(
-                pred= training,
-                true_fn= lambda: tf.zeros(shape=[batch_Size, 1], dtype= mels.dtype),
-                false_fn= lambda: Calc_Sample(logit)
-                )
+            sample = self.calc_sample(logit)
             samples = tf.concat([samples, sample], axis= -1)
         
-            return step + 1, new_Hidden_0, new_Hidden_1, logits, samples
+            return step + 1, new_Hidden_0, new_Hidden_1, samples
         
-        _, _, _, logits, samples = tf.while_loop(
-            cond= lambda step, hidden_0, hidden_1, logits, samples: step < mel_Lengths,
+        _, _, _, samples = tf.while_loop(
+            cond= lambda step, hidden_0, hidden_1, samples: step < mel_Lengths,
             body= body,
             loop_vars= [
                 0,
                 initial_Hidden_0,
                 initial_Hidden_1,
-                logits,
                 samples
                 ],
             shape_invariants= [
                 tf.TensorShape([]),
                 tf.TensorShape([None, initial_Hidden_0.get_shape()[-1]]),
                 tf.TensorShape([None, initial_Hidden_1.get_shape()[-1]]),
-                tf.TensorShape([None, None, self.layer_Dict['Projection'].units]),
                 tf.TensorShape([None, None]),
                 ]
             )
 
-        return logits[:, 1:], samples[:, 1:] # [Batch, Time], initial zero slice
+        return tf.zeros(shape=[batch_Size, mel_Lengths, self.layer_Dict['Projection'].units], dtype= mels.dtype), samples[:, 1:] # [Batch, Time], initial zero slice
+
+
+    def calc_sample(self, logit):
+        if hp_Dict['WaveRNN']['Mode'].upper() == 'MoL'.upper():
+            sample = Sample_from_Discretized_Mix_Logistic(logit)
+            sample = tf.expand_dims(sample, axis= -1)
+        elif hp_Dict['WaveRNN']['Mode'].upper() == 'Raw'.upper():
+            coarse_Logit, fine_Logit = tf.split(logit, num_or_size_splits= 2, axis= -1)                
+            coarse = tf.random.categorical(tf.math.softmax(coarse_Logit, axis= -1), num_samples= 1)
+            fine = tf.random.categorical(tf.math.softmax(fine_Logit, axis= -1), num_samples= 1)
+            sample = 2 * (coarse * 256 + fine) / 65536 - 1.0
+            sample = tf.cast(sample, dtype= logit.dtype)
+        else:
+            raise ValueError('Unsupported mode')
+        return sample
+        
 
 class Loss(tf.keras.layers.Layer):
     def call(self, inputs):        

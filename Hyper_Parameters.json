@@ -9,7 +9,7 @@
     },
 
     "WaveRNN": {
-        "Mode": "Raw",
+        "Mode": "MoL",
         "Upsample": {
             "Res_Blocks": 10,
             "Scales": [4, 4, 4, 4],
@@ -24,7 +24,7 @@
     "Train": {
         "Pattern_Path": "C:/Pattern/WR.Pattern.LJ",
         "Metadata_File": "METADATA.PICKLE",
-        "Batch_Size": 16,
+        "Batch_Size": 32,
         "Wav_Length": 768,
         "Max_Pattern_Queue": 100,
         "Initial_Learning_Rate": 1e-4,
@@ -41,7 +41,7 @@
 
 
     "Use_Mixed_Precision": false,
-    "Inference_Path": "D:/WaveRNN.LJ.Raw.Results/Inference",
-    "Checkpoint_Path": "D:/WaveRNN.LJ.Raw.Results/Checkpoint",
-    "Device": "0"
+    "Inference_Path": "D:/WaveRNN.LJ.MoL.Results/Inference",
+    "Checkpoint_Path": "D:/WaveRNN.LJ.MoL.Results/Checkpoint",
+    "Device": "-1"
 }

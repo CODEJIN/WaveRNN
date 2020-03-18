@@ -167,7 +167,13 @@ class Feeder:
         pattern_Dict_List = []
         for split_Mel_Pattern in [mel_Pattern[index:index+batch_Size] for index in range(0, mel_Pattern.shape[0], batch_Size)]:
             new_Pattern_Dict = {
-                'audios': np.zeros(shape=(split_Mel_Pattern.shape[0], 1), dtype= np.float32),
+                'audios': np.zeros(
+                    shape=(
+                        split_Mel_Pattern.shape[0],
+                        hp_Dict['Sound']['Frame_Shift'] * (split_Mel_Window - 2 * hp_Dict['WaveRNN']['Upsample']['Pad'])
+                        ),
+                    dtype= np.float32
+                    ),
                 'mels': split_Mel_Pattern,
                 }
             pattern_Dict_List.append(new_Pattern_Dict)
@@ -178,10 +184,10 @@ class Feeder:
 if __name__ == "__main__":
     new_Feeder = Feeder(is_Training= True)
 
-    # x = new_Feeder.Get_Inference_Pattern(wav_List= [
-    #     'D:/Pattern/ENG/LJSpeech/wavs/LJ050-0276.wav',
-    #     'D:/Pattern/ENG/FastVox/cmu_us_jmk_arctic/wav/arctic_a0012.wav',
-    #     ])
+    print(new_Feeder.Get_Inference_Pattern(wav_List= [
+        'D:/Pattern/ENG/LJSpeech/wavs/LJ050-0276.wav',
+        'D:/Pattern/ENG/FastVox/cmu_us_jmk_arctic/wav/arctic_a0012.wav',
+        ]))
     while True:
         time.sleep(1.0)
         print(new_Feeder.Get_Pattern())

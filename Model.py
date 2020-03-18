@@ -49,8 +49,13 @@ class WaveRNN:
         layer_Dict['WaveRNN'] = Modules.WaveRNN()        
         layer_Dict['Loss'] = Modules.Loss()
                 
-        tensor_Dict['Logits'], tensor_Dict['Samples'] = layer_Dict['WaveRNN'](
-            inputs= [input_Dict['Audio'][:, :-1], input_Dict['Mel']]
+        tensor_Dict['Logits'], _ = layer_Dict['WaveRNN'](
+            inputs= [input_Dict['Audio'][:, :-1], input_Dict['Mel']],
+            training= True
+            ) #Using audio is [:, :-1].
+        _, tensor_Dict['Samples'] = layer_Dict['WaveRNN'](
+            inputs= [input_Dict['Audio'], input_Dict['Mel']],
+            training= False
             ) #Using audio is [:, :-1].
         tensor_Dict['Loss'] = layer_Dict['Loss'](
             inputs=[input_Dict['Audio'][:, 1:], tensor_Dict['Logits']]
@@ -79,7 +84,8 @@ class WaveRNN:
             learning_rate= learning_Rate,
             beta_1= hp_Dict['Train']['ADAM']['Beta1'],
             beta_2= hp_Dict['Train']['ADAM']['Beta2'],
-            epsilon= hp_Dict['Train']['ADAM']['Epsilon']
+            epsilon= hp_Dict['Train']['ADAM']['Epsilon'],
+            clipnorm= 4.0
             )
 
         self.model_Dict['Train'].summary()
@@ -235,6 +241,7 @@ class WaveRNN:
         export_Inference_Thread.start()
     
     def Export_Inference(self, sig_List, original_Sig_List= None, label= 'Result'):
+        
         os.makedirs(os.path.join(hp_Dict['Inference_Path'], 'Plot').replace("\\", "/"), exist_ok= True)
         os.makedirs(os.path.join(hp_Dict['Inference_Path'], 'Wav').replace("\\", "/"), exist_ok= True)
 
