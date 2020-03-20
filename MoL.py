@@ -62,7 +62,7 @@ def Discretized_Mix_Logistic_Loss(
         tf.expand_dims(labels, axis= -1),
         [1, 1, means.get_shape()[-1]]
         ), dtype= logits.dtype)
-    cetnered_labels = labels - tf.reduce_mean(labels)
+    cetnered_labels = labels - means
     inv_stdv = tf.exp(-log_scales)
 
     plus_in = inv_stdv * (cetnered_labels + 1 / (classes - 1))
