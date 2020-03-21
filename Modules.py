@@ -1,6 +1,5 @@
 # Refer:
-# https://github.com/b04901014/waveglow-tensorflow/blob/master/src/module.py
-# https://github.com/NVIDIA/waveglow/blob/2fd4e63e2918012f55eac2c8a8e75622a39741be/glow.py#L178
+# https://https://github.com/fatchord/WaveRNN
 
 import tensorflow as tf
 import numpy as np

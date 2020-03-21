@@ -192,8 +192,6 @@ if __name__ == '__main__':
     argParser.add_argument("-timit", "--timit_path", required=False)
     argParser.add_argument("-bc2013", "--bc2013_path", required=False)
     argParser.add_argument("-fv", "--fv_path", required=False)
-    argParser.add_argument("-all", "--all_save", action='store_true') #When this parameter is False, only correct time range patterns are generated.
-    argParser.set_defaults(all_save = False)
     argParser.add_argument("-mc", "--max_count", required=False)
     argParser.add_argument("-mw", "--max_worker", required=False)
     argParser.set_defaults(max_worker = 10)

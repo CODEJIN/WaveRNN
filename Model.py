@@ -1,3 +1,6 @@
+# Refer:
+# https://https://github.com/fatchord/WaveRNN
+
 import tensorflow as tf
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
 import numpy as np
@@ -93,14 +96,14 @@ class WaveRNN:
 
         self.checkpoint = tf.train.Checkpoint(optimizer= self.optimizer, model= self.model_Dict['Train'])
 
-    # @tf.function(
-    #     input_signature=[            
-    #         tf.TensorSpec(shape=[None, None], dtype= tf.as_dtype(policy.compute_dtype)),
-    #         tf.TensorSpec(shape=[None, None, hp_Dict['Sound']['Mel_Dim']], dtype= tf.as_dtype(policy.compute_dtype)),
-    #         ],
-    #     autograph= True,
-    #     experimental_relax_shapes= True
-    #     )
+    @tf.function(
+        input_signature=[            
+            tf.TensorSpec(shape=[None, None], dtype= tf.as_dtype(policy.compute_dtype)),
+            tf.TensorSpec(shape=[None, None, hp_Dict['Sound']['Mel_Dim']], dtype= tf.as_dtype(policy.compute_dtype)),
+            ],
+        autograph= True,
+        experimental_relax_shapes= True
+        )
     def Train_Step(self, audios, mels):
         with tf.GradientTape() as tape:
             loss = self.model_Dict['Train'](
