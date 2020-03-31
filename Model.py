@@ -115,14 +115,14 @@ class WaveRNN:
 
         return loss
 
-    # @tf.function(
-    #     input_signature=[            
-    #         tf.TensorSpec(shape=[None, None], dtype= tf.as_dtype(policy.compute_dtype)),
-    #         tf.TensorSpec(shape=[None, None, hp_Dict['Sound']['Mel_Dim']], dtype= tf.as_dtype(policy.compute_dtype)),
-    #         ],
-    #     autograph= False,
-    #     experimental_relax_shapes= False
-    #     )
+    @tf.function(
+        input_signature=[            
+            tf.TensorSpec(shape=[None, None], dtype= tf.as_dtype(policy.compute_dtype)),
+            tf.TensorSpec(shape=[None, None, hp_Dict['Sound']['Mel_Dim']], dtype= tf.as_dtype(policy.compute_dtype)),
+            ],
+        autograph= False,
+        experimental_relax_shapes= False
+        )
     def Inference_Step(self, audios, mels):        
         sig = self.model_Dict['Inference'](
             inputs= [audios, mels],

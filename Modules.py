@@ -5,7 +5,6 @@ import tensorflow as tf
 import numpy as np
 import json
 from MoL import Sample_from_Discretized_Mix_Logistic, Discretized_Mix_Logistic_Loss
-from Inference_Model import Keras_Model_for_Inference
 
 with open('Hyper_Parameters.json', 'r') as f:
     hp_Dict = json.load(f)

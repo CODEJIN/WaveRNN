@@ -164,16 +164,44 @@ new_WaveRNN.Inference(
 
 # Result
 
-Now training...
+* The following results are based on the checkpoint of 208500 steps of 32 batchs (509.31 epochs).
+* Single talker (LJSpeech) is trained.
+* The result is based on the original wav file. The joint with the voice synthesizer has not been progressed yet.
+* Voice quality is not perfect, and I don't think additional training improve the quality.
+
+![Loss](./Example_Results/Figures/Loss.png)
+
+* Full sequence (No split batch)
+    * Trained wav
+        * [NB_Wav_IDX_0](./Example_Results/Wav/20200330.195615.NB.IDX_0.WAV)
+        * ![NB_Figure_IDX_0](./Example_Results/Figures/20200330.195615.NB.IDX_0.PNG)
+    * Unseen talker's wav
+        * [NB_Wav_IDX_1](./Example_Results/Wav/20200330.195615.NB.IDX_1.WAV)
+        * ![NB_Figure_IDX_1](./Example_Results/Figures/20200330.195615.NB.IDX_1.PNG)
+
+* Full sequence (No split batch)
+    * Trained wav
+        * [Batched_Wav_IDX_0](./Example_Results/Wav/20200330.195606.Batched.IDX_0.WAV)
+        * ![Batched_Figure_IDX_0](./Example_Results/Figures/20200330.195606.Batched.IDX_0.PNG)
+    * Unseen talker's wav
+        * [Batched_Wav_IDX_1](./Example_Results/Wav/20200330.195606.Batched.IDX_1.WAV)
+        * ![Batched_Figure_IDX_1](./Example_Results/Figures/20200330.195606.Batched.IDX_1.PNG)
 
 # Trained checkpoint
 
-Now training... 
+[Checkpoint here](./Example_Results/Checkpoint/Checkpoint.zip)
+
+* This is the checkpoint of 208500 steps of 32 batchs (509.31 epochs).
+* Single talker (LJSpeech) is trained.
 
 # Future works
-1. Mutil speaker. There are two ways.
+1. Improving quality.
+    * Parameter change?
+    * Structure modification?
+
+2. Mutil speaker. There are two ways.
     * Without any speaker information
     * Append speaker ID 
 
-2. Integrating GST Tacotron
+3. Integrating GST Tacotron
     * https://github.com/CODEJIN/GST_Tacotron    
